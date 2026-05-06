@@ -260,17 +260,7 @@ class ClanBotService:
 
         return self._error(
             self._t(lang, "Не удалось разобрать сообщение", "Could not parse message"),
-            [
-                self._t(lang, "Примеры:", "Examples:"),
-                "Nickname ne smogu 2026-05-08",
-                "Nickname ne smogu 08.05-10.05",
-                "Nickname cancellation 2026-05-08",
-                "Nickname will attend 08.05-10.05",
-                "lineup 2026-05-09",
-                "week",
-                "help",
-                "admin help",
-            ],
+            self._parse_examples(lang),
         )
 
     def _resolve_language(self, repo: Repository) -> str:
@@ -766,28 +756,58 @@ class ClanBotService:
             return (
                 "**Справка администратора**\n"
                 "━━━━━━━━━━━━━━━━━━\n"
-                "• `admin set-language en|ru` — сменить язык\n"
-                "• `admin tournament show`, `admin tournament weekdays ср,чт,сб`\n"
-                "• `admin tournament cancel 2026-05-07`, `admin tournament uncancel 2026-05-07`\n"
-                "• `admin roster reload`, `admin roster template`, `admin roster export`, `admin roster upload`\n"
-                "• `admin list`\n"
-                "• `admin add-player`, `admin remove-player`, `admin move-player`\n"
-                "• `admin no-show Nickname 2026-05-07`\n"
-                "• `admin force-in`, `admin force-out`, `admin clear-override`\n"
-                "• `admin set-rotation`, `admin set-channel`"
+                "**Общее**\n"
+                "• `admin set-language en|ru` — сменить язык ответов бота\n"
+                "• `admin set-channel` — зафиксировать текущий Discord-канал\n"
+                "\n**Расписание турниров**\n"
+                "• `admin tournament show` — показать турнирные дни и отмененные даты\n"
+                "• `admin tournament weekdays ср,чт,сб` — задать регулярные дни турнира\n"
+                "• `admin tournament cancel 2026-05-07` — отменить турнир на дату\n"
+                "• `admin tournament uncancel 2026-05-07` — снять отмену с даты\n"
+                "\n**Импорт и экспорт ростера**\n"
+                "• `admin roster reload` — загрузить ростер из файла\n"
+                "• `admin roster template` — скачать JSON-шаблон ростера\n"
+                "• `admin roster export` — выгрузить текущий ростер из базы\n"
+                "• `admin roster upload` — загрузить новый ростер из `.json`\n"
+                "\n**Управление составом**\n"
+                "• `admin list` — показать текущий состав по отрядам\n"
+                "• `admin add-player \"Squad A\" NewNick` — добавить игрока\n"
+                "• `admin remove-player NewNick` — удалить игрока\n"
+                "• `admin move-player NewNick \"Squad B\"` — переместить игрока\n"
+                "• `admin set-rotation \"Squad A\" 3` — вручную задать индекс ротации\n"
+                "\n**Корректировки посещаемости**\n"
+                "• `admin no-show Nickname 2026-05-07` — отметить неявку постфактум\n"
+                "• `admin force-in NewNick 2026-05-08` — принудительно включить игрока\n"
+                "• `admin force-out NewNick 2026-05-08` — принудительно исключить игрока\n"
+                "• `admin clear-override NewNick 2026-05-08` — убрать ручной override"
             )
         return (
             "**Administrator Help**\n"
             "━━━━━━━━━━━━━━━━━━\n"
-            "• `admin set-language en|ru` — switch language\n"
-            "• `admin tournament show`, `admin tournament weekdays wed,thu,sat`\n"
-            "• `admin tournament cancel 2026-05-07`, `admin tournament uncancel 2026-05-07`\n"
-            "• `admin roster reload`, `admin roster template`, `admin roster export`, `admin roster upload`\n"
-            "• `admin list`\n"
-            "• `admin add-player`, `admin remove-player`, `admin move-player`\n"
-            "• `admin no-show Nickname 2026-05-07`\n"
-            "• `admin force-in`, `admin force-out`, `admin clear-override`\n"
-            "• `admin set-rotation`, `admin set-channel`"
+            "**General**\n"
+            "• `admin set-language en|ru` — switch bot response language\n"
+            "• `admin set-channel` — lock bot to current Discord channel\n"
+            "\n**Tournament schedule**\n"
+            "• `admin tournament show` — show tournament weekdays and cancelled dates\n"
+            "• `admin tournament weekdays wed,thu,sat` — set recurring tournament weekdays\n"
+            "• `admin tournament cancel 2026-05-07` — cancel tournament for a date\n"
+            "• `admin tournament uncancel 2026-05-07` — remove cancellation from a date\n"
+            "\n**Roster import/export**\n"
+            "• `admin roster reload` — reload roster from file\n"
+            "• `admin roster template` — download roster JSON template\n"
+            "• `admin roster export` — export current roster from database\n"
+            "• `admin roster upload` — upload new roster from `.json`\n"
+            "\n**Roster management**\n"
+            "• `admin list` — show current roster grouped by squads\n"
+            "• `admin add-player \"Squad A\" NewNick` — add a player\n"
+            "• `admin remove-player NewNick` — remove a player\n"
+            "• `admin move-player NewNick \"Squad B\"` — move player to another squad\n"
+            "• `admin set-rotation \"Squad A\" 3` — set squad rotation index manually\n"
+            "\n**Attendance corrections**\n"
+            "• `admin no-show Nickname 2026-05-07` — record a post-factum no-show\n"
+            "• `admin force-in NewNick 2026-05-08` — force player into lineup\n"
+            "• `admin force-out NewNick 2026-05-08` — force player out of lineup\n"
+            "• `admin clear-override NewNick 2026-05-08` — clear manual override"
         )
 
     @staticmethod
@@ -796,21 +816,59 @@ class ClanBotService:
             return (
                 "**Справка игрока**\n"
                 "━━━━━━━━━━━━━━━━━━\n"
-                "• `help`\n"
-                "• `bind <nickname>`\n"
-                "• `Nickname не смогу 2026-05-08`\n"
-                "• `Nickname отмена 2026-05-08`\n"
-                "• `lineup 2026-05-09`, `week`, `расписание недели`"
+                "**Привязка**\n"
+                "• `help` — показать эту справку\n"
+                "• `bind <nickname>` — привязать аккаунт к нику в ростере\n"
+                "\n**Отсутствия**\n"
+                "• `Nickname не смогу 2026-05-08` — отметить отсутствие на дату\n"
+                "• `Nickname не смогу 08.05-10.05` — отметить отсутствие на диапазон\n"
+                "• `Nickname отмена 2026-05-08` — отменить ранее отправленную отписку\n"
+                "• `Nickname буду 08.05-10.05` — сообщить, что будешь на диапазон дат\n"
+                "\n**Отчеты**\n"
+                "• `lineup 2026-05-09` — показать сетку на турнирный день\n"
+                "• `week` / `расписание недели` — показать недельный отчет"
             )
         return (
             "**Player Help**\n"
             "━━━━━━━━━━━━━━━━━━\n"
-            "• `help`\n"
-            "• `bind <nickname>`\n"
-            "• `Nickname cannot attend 2026-05-08`\n"
-            "• `Nickname cancellation 2026-05-08`\n"
-            "• `lineup 2026-05-09`, `week`"
+            "**Binding**\n"
+            "• `help` — show this help\n"
+            "• `bind <nickname>` — link your account to roster nickname\n"
+            "\n**Attendance**\n"
+            "• `Nickname cannot attend 2026-05-08` — mark absence for a date\n"
+            "• `Nickname cannot attend 08.05-10.05` — mark absence for a date range\n"
+            "• `Nickname cancellation 2026-05-08` — cancel previously submitted absence\n"
+            "• `Nickname will attend 08.05-10.05` — confirm presence for a date range\n"
+            "\n**Reports**\n"
+            "• `lineup 2026-05-09` — show lineup for a tournament day\n"
+            "• `week` — show weekly report"
         )
+
+    @staticmethod
+    def _parse_examples(lang: str) -> list[str]:
+        if lang == "ru":
+            return [
+                "Примеры:",
+                "Nickname не смогу 2026-05-08",
+                "Nickname не смогу 08.05-10.05",
+                "Nickname отмена 2026-05-08",
+                "Nickname буду 08.05-10.05",
+                "lineup 2026-05-09",
+                "week",
+                "help",
+                "admin help",
+            ]
+        return [
+            "Examples:",
+            "Nickname cannot attend 2026-05-08",
+            "Nickname cannot attend 08.05-10.05",
+            "Nickname cancellation 2026-05-08",
+            "Nickname will attend 08.05-10.05",
+            "lineup 2026-05-09",
+            "week",
+            "help",
+            "admin help",
+        ]
 
     def _next_tournament_day(self, repo: Repository, start: date) -> date:
         current = start
