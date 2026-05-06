@@ -17,6 +17,8 @@ except Exception:  # pragma: no cover
 
 IntentType = Literal["absence", "presence", "query", "unknown"]
 
+_DATE_TOKEN_PATTERN = r"\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?"
+
 
 @dataclass
 class ParsedIntent:
@@ -152,9 +154,10 @@ class MessageParser:
     @staticmethod
     def _extract_date_range(text: str, today: date) -> tuple[date | None, date | None]:
         normalized = text.replace("—", "-")
+        range_pattern = rf"(?:\b(?:от|с)\b\s*)?({_DATE_TOKEN_PATTERN})\s*(?:-|to|по|до)\s*({_DATE_TOKEN_PATTERN})"
 
         range_match = re.search(
-            r"(\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?)\s*(?:-|to|по|до)\s*(\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?)",
+            range_pattern,
             normalized,
             flags=re.IGNORECASE,
         )
@@ -162,8 +165,22 @@ class MessageParser:
             left = MessageParser._parse_single_date(range_match.group(1), today)
             right = MessageParser._parse_single_date(range_match.group(2), today)
             if left and right:
+                if range_match.group(1) and not MessageParser._token_has_year(range_match.group(2)) and right < left:
+                    right = MessageParser._parse_single_date(range_match.group(2), today.replace(year=today.year + 1)) or right
                 if right < left:
                     left, right = right, left
+                return left, right
+
+        until_match = re.search(
+            rf"\b(?:до|по)\b\s*({_DATE_TOKEN_PATTERN})",
+            normalized,
+            flags=re.IGNORECASE,
+        )
+        if until_match:
+            right = MessageParser._parse_single_date(until_match.group(1), today, prefer_future=True)
+            if right:
+                left = min(today, right)
+                right = max(today, right)
                 return left, right
 
         found = search_dates(
@@ -184,7 +201,11 @@ class MessageParser:
         return None, None
 
     @staticmethod
-    def _parse_single_date(value: str, today: date) -> date | None:
+    def _parse_single_date(value: str, today: date, prefer_future: bool = False) -> date | None:
+        numeric = MessageParser._parse_numeric_date(value, today, prefer_future=prefer_future)
+        if numeric:
+            return numeric
+
         parsed = dateparser.parse(
             value,
             languages=["ru", "en"],
@@ -194,6 +215,37 @@ class MessageParser:
             },
         )
         return parsed.date() if parsed else None
+
+    @staticmethod
+    def _parse_numeric_date(value: str, today: date, prefer_future: bool = False) -> date | None:
+        match = re.fullmatch(r"(\d{1,2})[./-](\d{1,2})(?:[./-](\d{2,4}))?", value.strip())
+        if not match:
+            return None
+
+        day = int(match.group(1))
+        month = int(match.group(2))
+        year_raw = match.group(3)
+        year = today.year
+        if year_raw:
+            year = int(year_raw)
+            if year < 100:
+                year += 2000
+
+        try:
+            parsed = date(year, month, day)
+        except ValueError:
+            return None
+
+        if not year_raw and prefer_future and parsed < today:
+            try:
+                parsed = date(year + 1, month, day)
+            except ValueError:
+                pass
+        return parsed
+
+    @staticmethod
+    def _token_has_year(value: str) -> bool:
+        return bool(re.fullmatch(r"\d{1,2}[./-]\d{1,2}[./-]\d{2,4}", value.strip()))
 
     @staticmethod
     def _iso_to_date(value: str | None) -> date | None:

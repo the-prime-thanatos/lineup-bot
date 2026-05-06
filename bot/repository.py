@@ -350,9 +350,15 @@ class Repository:
         return self.session.scalar(stmt)
 
     def save_snapshot(self, target_date: date, payload: dict) -> None:
+        payload_json = json.dumps(payload, ensure_ascii=False)
+        snapshot = self.get_snapshot(target_date)
+        if snapshot:
+            snapshot.payload_json = payload_json
+            return
+
         snapshot = ScheduleSnapshot(
             match_date=target_date,
-            payload_json=json.dumps(payload, ensure_ascii=False),
+            payload_json=payload_json,
         )
         self.session.add(snapshot)
 
