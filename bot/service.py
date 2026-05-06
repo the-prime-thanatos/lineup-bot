@@ -55,8 +55,9 @@ class ClanBotService:
         "воскресенье": 6,
     }
 
-    _WEEKDAY_NAMES_EN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-    _WEEKDAY_NAMES_RU = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+    _WEEKDAY_NAMES_EN = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    _WEEKDAY_NAMES_RU = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
+    _WEEKDAY_NAMES_RU_ACC = ["понедельник", "вторник", "среду", "четверг", "пятницу", "субботу", "воскресенье"]
     _MONTH_NAMES_EN = [
         "January",
         "February",
@@ -970,11 +971,22 @@ class ClanBotService:
             return cls._format_report_date(start_date, lang)
         return f"{cls._format_report_date(start_date, lang)} - {cls._format_report_date(end_date, lang)}"
 
+    @classmethod
+    def _format_lineup_date(cls, target_date: date, lang: str) -> str:
+        """Date string for lineup header with proper grammatical case."""
+        months = cls._MONTH_NAMES_RU if lang == "ru" else cls._MONTH_NAMES_EN
+        month = months[target_date.month - 1]
+        if lang == "ru":
+            weekday = cls._WEEKDAY_NAMES_RU_ACC[target_date.weekday()]
+            return f"{weekday}, {target_date.day} {month} {target_date.year}"
+        weekday = cls._WEEKDAY_NAMES_EN[target_date.weekday()]
+        return f"{weekday}, {month} {target_date.day}, {target_date.year}"
+
     @staticmethod
     def _format_schedule(payload: dict, lang: str) -> str:
         target_date = datetime.strptime(payload["date"], "%Y-%m-%d").date()
-        pretty_date = ClanBotService._format_report_date(target_date, lang)
-        lines = [f"{('Сетка' if lang == 'ru' else 'Lineup')} {('на' if lang == 'ru' else 'for')} {pretty_date}", "------------------------------"]
+        pretty_date = ClanBotService._format_lineup_date(target_date, lang)
+        lines = [f"{('Сетка на' if lang == 'ru' else 'Lineup for')} {pretty_date}", "------------------------------"]
         for squad in payload["squads"]:
             starters = ", ".join(squad["starters"]) if squad["starters"] else ("нет игроков" if lang == "ru" else "no players")
             bench = ", ".join(squad["bench"]) if squad["bench"] else ("нет" if lang == "ru" else "none")
