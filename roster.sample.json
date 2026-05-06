@@ -1,0 +1,28 @@
+{
+  "squads": [
+    {
+      "name": "Squad A",
+      "players": ["Alpha1", "Alpha2", "Alpha3", "Alpha4", "Alpha5", "Alpha6", "Alpha7"]
+    },
+    {
+      "name": "Squad B",
+      "players": ["Bravo1", "Bravo2", "Bravo3", "Bravo4", "Bravo5", "Bravo6"]
+    },
+    {
+      "name": "Squad C",
+      "players": ["Charlie1", "Charlie2", "Charlie3", "Charlie4", "Charlie5"]
+    },
+    {
+      "name": "Squad D",
+      "players": ["Delta1", "Delta2", "Delta3", "Delta4", "Delta5", "Delta6", "Delta7", "Delta8"]
+    },
+    {
+      "name": "Squad E",
+      "players": ["Echo1", "Echo2", "Echo3", "Echo4", "Echo5"]
+    },
+    {
+      "name": "Squad F",
+      "players": ["Foxtrot1", "Foxtrot2", "Foxtrot3", "Foxtrot4", "Foxtrot5", "Foxtrot6"]
+    }
+  ]
+}
