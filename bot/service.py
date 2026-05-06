@@ -57,6 +57,34 @@ class ClanBotService:
 
     _WEEKDAY_NAMES_EN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     _WEEKDAY_NAMES_RU = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+    _MONTH_NAMES_EN = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+    ]
+    _MONTH_NAMES_RU = [
+        "января",
+        "февраля",
+        "марта",
+        "апреля",
+        "мая",
+        "июня",
+        "июля",
+        "августа",
+        "сентября",
+        "октября",
+        "ноября",
+        "декабря",
+    ]
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
@@ -711,8 +739,10 @@ class ClanBotService:
             return None
 
         week_start = self._monday_of_week(today)
+        week_end = week_start + timedelta(days=6)
         lines = [
-            f"**{self._t(lang, 'Недельный отчёт', 'Weekly report')} ({week_start.isoformat()})**",
+            f"**{self._t(lang, 'Недельный отчёт', 'Weekly report')}**",
+            f"{self._t(lang, 'Период', 'Period')}: {self._format_date_range(week_start, week_end, lang)}",
             "━━━━━━━━━━━━━━━━━━",
         ]
         generated = False
@@ -722,20 +752,22 @@ class ClanBotService:
         for weekday in sorted(weekdays):
             target_date = week_start + timedelta(days=weekday)
             if target_date in cancelled:
-                lines.append(f"\n**{target_date.isoformat()} [OFF]**")
+                lines.append(f"\n**{self._format_report_date(target_date, lang)} [OFF]**")
                 lines.append(self._t(lang, "Турнир отменен на эту дату", "Tournament is cancelled for this date"))
                 generated = True
                 continue
             payload = self.scheduler.build_day_schedule(repo, target_date)
             total_missing = sum(item["missing_slots"] for item in payload["squads"])
             status = "WARN" if total_missing > 0 else "OK"
-            lines.append(f"\n**{target_date.isoformat()} [{status}]**")
+            lines.append(f"\n**{self._format_report_date(target_date, lang)} [{status}]**")
             for squad in payload["squads"]:
                 missing = squad["missing_slots"]
                 prefix = "!" if missing > 0 else "-"
                 lines.append(f"{prefix} {squad['name']}: {len(squad['starters'])}/5 | {self._t(lang, 'Playing', 'Playing')}: {', '.join(squad['starters']) or self._t(lang, 'нет', 'none')}")
                 if missing > 0:
                     lines.append(f"  {self._t(lang, 'Дефицит', 'Deficit')}: {missing}")
+                lines.append(f"  {self._t(lang, 'Отсутствуют', 'Absent')}: {', '.join(squad.get('absent', [])) or self._t(lang, 'нет', 'none')}")
+                lines.append(f"  {self._t(lang, 'Исключены вручную', 'Manually excluded')}: {', '.join(squad.get('forced_out', [])) or self._t(lang, 'нет', 'none')}")
                 lines.append(f"  {self._t(lang, 'Очередь', 'Bench')}: {', '.join(squad['bench']) or self._t(lang, 'нет', 'none')}")
             generated = True
 
@@ -923,14 +955,35 @@ class ClanBotService:
         values = [labels[day] for day in sorted(weekdays) if 0 <= day <= 6]
         return ", ".join(values) if values else self._t(lang, "не задано", "not set")
 
+    @classmethod
+    def _format_report_date(cls, target_date: date, lang: str) -> str:
+        weekday = (cls._WEEKDAY_NAMES_RU if lang == "ru" else cls._WEEKDAY_NAMES_EN)[target_date.weekday()]
+        months = cls._MONTH_NAMES_RU if lang == "ru" else cls._MONTH_NAMES_EN
+        month = months[target_date.month - 1]
+        if lang == "ru":
+            return f"{weekday}, {target_date.day} {month} {target_date.year}"
+        return f"{weekday}, {month} {target_date.day}, {target_date.year}"
+
+    @classmethod
+    def _format_date_range(cls, start_date: date, end_date: date, lang: str) -> str:
+        if start_date == end_date:
+            return cls._format_report_date(start_date, lang)
+        return f"{cls._format_report_date(start_date, lang)} - {cls._format_report_date(end_date, lang)}"
+
     @staticmethod
     def _format_schedule(payload: dict, lang: str) -> str:
-        lines = [f"{('Сетка' if lang == 'ru' else 'Lineup')} {('на' if lang == 'ru' else 'for')} {payload['date']}", "------------------------------"]
+        target_date = datetime.strptime(payload["date"], "%Y-%m-%d").date()
+        pretty_date = ClanBotService._format_report_date(target_date, lang)
+        lines = [f"{('Сетка' if lang == 'ru' else 'Lineup')} {('на' if lang == 'ru' else 'for')} {pretty_date}", "------------------------------"]
         for squad in payload["squads"]:
             starters = ", ".join(squad["starters"]) if squad["starters"] else ("нет игроков" if lang == "ru" else "no players")
             bench = ", ".join(squad["bench"]) if squad["bench"] else ("нет" if lang == "ru" else "none")
+            absent = ", ".join(squad.get("absent", [])) if squad.get("absent") else ("нет" if lang == "ru" else "none")
+            forced_out = ", ".join(squad.get("forced_out", [])) if squad.get("forced_out") else ("нет" if lang == "ru" else "none")
             lines.append(f"\n[{squad['name']}]")
             lines.append(f"  {('Играют' if lang == 'ru' else 'Playing')}: {starters}")
+            lines.append(f"  {('Отсутствуют' if lang == 'ru' else 'Absent')}: {absent}")
+            lines.append(f"  {('Исключены вручную' if lang == 'ru' else 'Manually excluded')}: {forced_out}")
             lines.append(f"  {('Очередь замен' if lang == 'ru' else 'Bench queue')}: {bench}")
             if squad["missing_slots"] > 0:
                 lines.append(f"  {('Не хватает игроков' if lang == 'ru' else 'Missing slots')}: {squad['missing_slots']}")

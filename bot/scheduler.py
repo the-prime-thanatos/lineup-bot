@@ -11,6 +11,8 @@ class SquadDayResult:
     squad_name: str
     starters: list[str]
     bench: list[str]
+    absent: list[str]
+    forced_out: list[str]
     missing_slots: int
 
 
@@ -23,7 +25,9 @@ class Scheduler:
         if existing:
             import json
 
-            return json.loads(existing.payload_json)
+            payload = json.loads(existing.payload_json)
+            if all("absent" in squad and "forced_out" in squad for squad in payload.get("squads", [])):
+                return payload
 
         squads = repo.load_squads_with_players()
         daily_results: list[SquadDayResult] = []
@@ -36,21 +40,29 @@ class Scheduler:
                         squad_name=squad.name,
                         starters=[],
                         bench=[],
+                        absent=[],
+                        forced_out=[],
                         missing_slots=5,
                     )
                 )
                 continue
 
             available = []
+            absent: list[str] = []
+            forced_out: list[str] = []
             for player in roster:
                 override = repo.get_player_override(player.id, target_date)
                 if override == "out":
+                    forced_out.append(player.nickname)
                     continue
                 if override == "in":
                     available.append(player)
                     continue
-                if not repo.is_player_absent(player.id, target_date):
-                    available.append(player)
+                is_absent = repo.is_player_absent(player.id, target_date)
+                if is_absent:
+                    absent.append(player.nickname)
+                    continue
+                available.append(player)
 
             if len(available) <= 5:
                 starters = [p.nickname for p in available]
@@ -70,6 +82,8 @@ class Scheduler:
                     squad_name=squad.name,
                     starters=starters,
                     bench=bench,
+                    absent=absent,
+                    forced_out=forced_out,
                     missing_slots=missing_slots,
                 )
             )
@@ -81,6 +95,8 @@ class Scheduler:
                     "name": item.squad_name,
                     "starters": item.starters,
                     "bench": item.bench,
+                    "absent": item.absent,
+                    "forced_out": item.forced_out,
                     "missing_slots": item.missing_slots,
                 }
                 for item in daily_results
